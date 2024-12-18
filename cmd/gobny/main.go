@@ -13,6 +13,7 @@ func main() {
 
 	router.HandleFunc("GET /products", handler.GetProducts)
 	router.HandleFunc("POST /products", handler.CreateProducts)
+	router.HandleFunc("POST /users", handler.CreateUser)
 
 	server := http.Server{
 		Addr:    ":3000",

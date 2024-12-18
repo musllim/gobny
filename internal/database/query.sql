@@ -8,3 +8,10 @@ VALUES ($1, $2, $3);
 
 -- name: GetProducts :many
 SELECT * FROM products;
+
+-- name: CreateUserCart :execresult
+INSERT INTO carts (user_id)
+VALUES ($1);
+
+-- name: GetUserCart :many
+SELECT * FROM carts WHERE user_id = $1;
