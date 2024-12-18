@@ -15,3 +15,10 @@ VALUES ($1);
 
 -- name: GetUserCart :many
 SELECT * FROM carts WHERE user_id = $1;
+
+-- name: CreateCartItem :execresult
+INSERT INTO cart_items (cart_id, product_id, quantity)
+VALUES ($1, $2, $3);
+
+-- name: GetCartItems :many
+SELECT * FROM cart_items WHERE cart_id = $1;
