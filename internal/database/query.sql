@@ -21,4 +21,7 @@ INSERT INTO cart_items (cart_id, product_id, quantity)
 VALUES ($1, $2, $3);
 
 -- name: GetCartItems :many
-SELECT * FROM cart_items WHERE cart_id = $1;
+SELECT ci.id, p.name, ci.quantity, p.price
+FROM cart_items ci
+JOIN products p ON ci.product_id = p.id
+WHERE ci.cart_id = $1;

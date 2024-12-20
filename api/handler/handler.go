@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	database "github.com/musllim/gobny/internal/database/gobny"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -199,4 +201,124 @@ func CreateCartItem(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Cart item created successfully"))
 
+}
+
+func AddItemToCart(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
+	queries := database.New(conn)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		fmt.Println("db connection failed:", err.Error())
+		w.Write([]byte("Products Query failed"))
+
+		return
+	}
+
+	defer conn.Close(ctx)
+	products, err := queries.GetProducts(ctx)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("Products Query failed:", err.Error())
+		w.Write([]byte("Products Query failed"))
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(products)
+
+}
+
+func GetUserCart(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
+	queries := database.New(conn)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		fmt.Println("db connection failed:", err.Error())
+		w.Write([]byte("User Query failed"))
+
+		return
+	}
+
+	defer conn.Close(ctx)
+	userId := r.PathValue("id")
+	id, error := strconv.Atoi(userId)
+
+	if error != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Println("Provide a valid user id:", error.Error())
+		w.Write([]byte("Provide a valid user id"))
+		return
+	}
+
+	cart, error := queries.GetUserCart(ctx, pgtype.Int4{Int32: int32(id), Valid: true})
+
+	if error != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("failed to get cart failed:", error.Error())
+		w.Write([]byte("failed to get cart failed"))
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(cart); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("failed to get cart failed:", err.Error())
+		w.Write([]byte("failed to get cart failed"))
+		return
+	}
+}
+
+func GetCartItems(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
+	queries := database.New(conn)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		fmt.Println("db connection failed:", err.Error())
+		w.Write([]byte("User Query failed"))
+
+		return
+	}
+
+	defer conn.Close(ctx)
+	cartId := r.PathValue("id")
+	id, error := strconv.Atoi(cartId)
+
+	if error != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Println("Provide a valid user id:", error.Error())
+		w.Write([]byte("Provide a valid user id"))
+		return
+	}
+
+	cart, error := queries.GetCartItems(ctx, pgtype.Int4{Int32: int32(id), Valid: true})
+
+	if error != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("failed to get cart failed:", error.Error())
+		w.Write([]byte("failed to get cart failed"))
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(cart); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("failed to get cart failed:", err.Error())
+		w.Write([]byte("failed to get cart failed"))
+		return
+	}
 }
