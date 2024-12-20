@@ -46,7 +46,15 @@ func IsAutenticated(next http.Handler) http.Handler {
 			writeUnauthed(w)
 			return
 		}
-		fmt.Println("Subject", subject)
+		r.URL.RawQuery = subject
+		next.ServeHTTP(w, r)
+	})
+}
+
+func IsOwnCart(next http.Handler) http.Handler {
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
 		next.ServeHTTP(w, r)
 	})
 }

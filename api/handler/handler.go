@@ -11,22 +11,22 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	database "github.com/musllim/gobny/internal/database/gobny"
 	"golang.org/x/crypto/bcrypt"
 )
 
+func throwError(w http.ResponseWriter, message string, status int, err error) {
+	w.WriteHeader(status)
+	fmt.Println(message, err.Error())
+	w.Write([]byte(message))
+}
 func GetProducts(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
 	queries := database.New(conn)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-
-		fmt.Println("db connection failed:", err.Error())
-		w.Write([]byte("Products Query failed"))
-
+		throwError(w, "products query failed", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -34,9 +34,7 @@ func GetProducts(w http.ResponseWriter, r *http.Request) {
 	products, err := queries.GetProducts(ctx)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("Products Query failed:", err.Error())
-		w.Write([]byte("Products Query failed"))
+		throwError(w, "products query failed", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -52,11 +50,7 @@ func CreateProducts(w http.ResponseWriter, r *http.Request) {
 	queries := database.New(conn)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-
-		fmt.Println("db connection failed:", err.Error())
-		w.Write([]byte("Products Query failed"))
-
+		throwError(w, "products query failed", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -64,18 +58,12 @@ func CreateProducts(w http.ResponseWriter, r *http.Request) {
 	var product database.CreateProductParams
 
 	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("Products Query failed:", err.Error())
-		w.Write([]byte("Make sure to send corect request body"))
+		throwError(w, "products query failed", http.StatusInternalServerError, err)
 		return
 	}
 
-	products, err := queries.CreateProduct(ctx, product)
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("Products creation failed:", err.Error(), products)
-		w.Write([]byte("Products creation failed"))
+	if _, err := queries.CreateProduct(ctx, product); err != nil {
+		throwError(w, "products query failed", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -91,13 +79,10 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	queries := database.New(conn)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-
-		fmt.Println("db connection failed:", err.Error())
-		w.Write([]byte("User Query failed"))
-
+		throwError(w, "db connection failed", http.StatusInternalServerError, err)
 		return
 	}
+
 	type UserParams struct {
 		Email    string
 		Password string
@@ -106,24 +91,19 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	var user UserParams
 
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("Users Query failed:", err.Error())
-		w.Write([]byte("Make sure to send corect request body"))
+		throwError(w, "Users Query failed", http.StatusInternalServerError, err)
 		return
 	}
 
-	users, err := queries.GetUser(ctx, pgtype.Text{String: user.Email, Valid: true})
+	users, err := queries.GetUser(ctx, user.Email)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("User query failed:", err.Error())
-		w.Write([]byte("User query failed"))
+		throwError(w, "Users Query failed", http.StatusInternalServerError, err)
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(users.Password.String), []byte(user.Password)); err != nil {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Invalid creadentials"))
+	if err := bcrypt.CompareHashAndPassword([]byte(users.Password), []byte(user.Password)); err != nil {
+		throwError(w, "Invalid creadentials", http.StatusUnauthorized, err)
 		return
 	}
 
@@ -131,29 +111,22 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 		"sub": strconv.Itoa(int(users.ID)),
 		"exp": time.Now().Add(time.Hour * 24).Unix(),
 	})
-	token, error := claims.SignedString([]byte(os.Getenv("JWT_SECRET")))
-	if error != nil {
-		fmt.Println(error.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Faied to generate token"))
+	token, err := claims.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	if err != nil {
+		throwError(w, "Faied to generate token", http.StatusInternalServerError, err)
 		return
 	}
-
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(token))
-
 }
+
 func CreateUser(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
 	queries := database.New(conn)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-
-		fmt.Println("db connection failed:", err.Error())
-		w.Write([]byte("User Query failed"))
-
+		throwError(w, "User Query failed", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -161,21 +134,16 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	var user database.CreateUserParams
 
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("Users Query failed:", err.Error())
-		w.Write([]byte("Make sure to send corect request body"))
+		throwError(w, "Make sure to send corect request body", http.StatusInternalServerError, err)
 		return
 	}
 
-	hashed, _ := bcrypt.GenerateFromPassword([]byte(user.Password.String), 8)
+	hashed, _ := bcrypt.GenerateFromPassword([]byte(user.Password), 8)
 
-	user.Password.String = string(hashed)
-	users, err := queries.CreateUser(ctx, user)
+	user.Password = string(hashed)
 
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("User creation failed:", err.Error(), users)
-		w.Write([]byte("User creation failed"))
+	if _, err := queries.CreateUser(ctx, user); err != nil {
+		throwError(w, "User creation failed:", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -191,30 +159,20 @@ func CreateCart(w http.ResponseWriter, r *http.Request) {
 	queries := database.New(conn)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-
-		fmt.Println("db connection failed:", err.Error())
-		w.Write([]byte("Products Query failed"))
-
+		throwError(w, "Products Query failed", http.StatusInternalServerError, err)
 		return
 	}
 
 	defer conn.Close(ctx)
-	var cart database.Cart
+	id, err := strconv.Atoi(r.URL.RawQuery)
 
-	if err := json.NewDecoder(r.Body).Decode(&cart); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("Cart creation failed:", err.Error())
-		w.Write([]byte("Make sure to send corect request body"))
+	if err != nil {
+		throwError(w, "Provide a valid user id:", http.StatusBadRequest, err)
 		return
 	}
 
-	carts, err := queries.CreateUserCart(ctx, cart.UserID)
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("Cart creation failed:", err.Error(), carts)
-		w.Write([]byte("Cart creation failed"))
+	if _, err := queries.CreateUserCart(ctx, int32(id)); err != nil {
+		throwError(w, "Cart creation failed", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -230,11 +188,7 @@ func CreateCartItem(w http.ResponseWriter, r *http.Request) {
 	queries := database.New(conn)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-
-		fmt.Println("db connection failed:", err.Error())
-		w.Write([]byte("Cart item Query failed"))
-
+		throwError(w, "Cart item Query failed", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -242,18 +196,22 @@ func CreateCartItem(w http.ResponseWriter, r *http.Request) {
 	var cartItem database.CreateCartItemParams
 
 	if err := json.NewDecoder(r.Body).Decode(&cartItem); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("Cart item creation failed:", err.Error())
-		w.Write([]byte("Make sure to send corect request body"))
+		throwError(w, "Make sure to send corect request body", http.StatusInternalServerError, err)
+		return
+	}
+	id, err := strconv.Atoi(r.URL.RawQuery)
+
+	if err != nil {
+		throwError(w, "Provide a valid user id:", http.StatusBadRequest, err)
 		return
 	}
 
-	carts, err := queries.CreateCartItem(ctx, cartItem)
+	cart, err := queries.GetUserCart(ctx, int32(id))
 
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("Cart item creation failed:", err.Error(), carts)
-		w.Write([]byte("Cart item creation failed"))
+	cartItem.Cartid = int32(cart.ID)
+
+	if _, err := queries.CreateCartItem(ctx, cartItem); err != nil {
+		throwError(w, "Cart item creation failed", http.StatusBadRequest, err)
 		return
 	}
 
@@ -263,77 +221,33 @@ func CreateCartItem(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func AddItemToCart(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
-	queries := database.New(conn)
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-
-		fmt.Println("db connection failed:", err.Error())
-		w.Write([]byte("Products Query failed"))
-
-		return
-	}
-
-	defer conn.Close(ctx)
-	products, err := queries.GetProducts(ctx)
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("Products Query failed:", err.Error())
-		w.Write([]byte("Products Query failed"))
-		return
-	}
-
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(products)
-
-}
-
 func GetUserCart(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
 	queries := database.New(conn)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-
-		fmt.Println("db connection failed:", err.Error())
-		w.Write([]byte("User Query failed"))
-
+		throwError(w, "User Query failed", http.StatusBadRequest, err)
 		return
 	}
 
 	defer conn.Close(ctx)
-	userId := r.PathValue("id")
-	id, error := strconv.Atoi(userId)
+	id, err := strconv.Atoi(r.URL.RawQuery)
 
-	if error != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Println("Provide a valid user id:", error.Error())
-		w.Write([]byte("Provide a valid user id"))
+	if err != nil {
+		throwError(w, "Provide a valid user id", http.StatusBadRequest, err)
 		return
 	}
 
-	cart, error := queries.GetUserCart(ctx, pgtype.Int4{Int32: int32(id), Valid: true})
+	cart, err := queries.GetUserCart(ctx, int32(id))
 
-	if error != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("failed to get cart failed:", error.Error())
-		w.Write([]byte("failed to get cart failed"))
+	if err != nil {
+		throwError(w, "failed to get cart failed", http.StatusBadRequest, err)
 		return
 	}
-
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(cart); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("failed to get cart failed:", err.Error())
-		w.Write([]byte("failed to get cart failed"))
+		throwError(w, "failed to get cart failed", http.StatusInternalServerError, err)
 		return
 	}
 }
@@ -344,31 +258,23 @@ func GetCartItems(w http.ResponseWriter, r *http.Request) {
 	queries := database.New(conn)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-
-		fmt.Println("db connection failed:", err.Error())
-		w.Write([]byte("User Query failed"))
-
+		throwError(w, "User Query failed", http.StatusInternalServerError, err)
 		return
 	}
 
 	defer conn.Close(ctx)
 	cartId := r.PathValue("id")
-	id, error := strconv.Atoi(cartId)
+	id, err := strconv.Atoi(cartId)
 
-	if error != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Println("Provide a valid user id:", error.Error())
-		w.Write([]byte("Provide a valid user id"))
+	if err != nil {
+		throwError(w, "Provide a valid cart id", http.StatusBadRequest, err)
 		return
 	}
 
-	cart, error := queries.GetCartItems(ctx, pgtype.Int4{Int32: int32(id), Valid: true})
+	cart, err := queries.GetCartItems(ctx, int32(id))
 
-	if error != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("failed to get cart failed:", error.Error())
-		w.Write([]byte("failed to get cart failed"))
+	if err != nil {
+		throwError(w, "failed to get cart failed", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -376,9 +282,7 @@ func GetCartItems(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(cart); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("failed to get cart failed:", err.Error())
-		w.Write([]byte("failed to get cart failed"))
+		throwError(w, "failed to get cart failed", http.StatusInternalServerError, err)
 		return
 	}
 }

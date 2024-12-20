@@ -19,7 +19,7 @@ func main() {
 	authorizedRouter.HandleFunc("POST /products", handler.CreateProducts)
 	router.HandleFunc("POST /users", handler.CreateUser)
 	router.HandleFunc("POST /login", handler.LoginUser)
-	router.HandleFunc("GET /users/{id}/carts", handler.GetUserCart)
+	authorizedRouter.HandleFunc("GET /carts", handler.GetUserCart)
 	authorizedRouter.HandleFunc("POST /carts", handler.CreateCart)
 	authorizedRouter.HandleFunc("POST /carts/items", handler.CreateCartItem)
 	authorizedRouter.HandleFunc("GET /carts/{id}/items", handler.GetCartItems)
