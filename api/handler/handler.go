@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	database "github.com/musllim/gobny/internal/database/gobny"
@@ -83,6 +85,64 @@ func CreateProducts(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func LoginUser(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
+	queries := database.New(conn)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		fmt.Println("db connection failed:", err.Error())
+		w.Write([]byte("User Query failed"))
+
+		return
+	}
+	type UserParams struct {
+		Email    string
+		Password string
+	}
+	defer conn.Close(ctx)
+	var user UserParams
+
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("Users Query failed:", err.Error())
+		w.Write([]byte("Make sure to send corect request body"))
+		return
+	}
+
+	users, err := queries.GetUser(ctx, pgtype.Text{String: user.Email, Valid: true})
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("User query failed:", err.Error())
+		w.Write([]byte("User query failed"))
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(users.Password.String), []byte(user.Password)); err != nil {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Invalid creadentials"))
+		return
+	}
+
+	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub": strconv.Itoa(int(users.ID)),
+		"exp": time.Now().Add(time.Hour * 24).Unix(),
+	})
+	token, error := claims.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	if error != nil {
+		fmt.Println(error.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Faied to generate token"))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(token))
+
+}
 func CreateUser(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))

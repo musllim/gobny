@@ -2,6 +2,9 @@
 INSERT INTO users (email, names, password)
 VALUES ($1, $2, $3);
 
+-- name: GetUser :one
+SELECT * FROM users WHERE email = $1;
+
 -- name: CreateProduct :execresult
 INSERT INTO products (name, price, count)
 VALUES ($1, $2, $3);

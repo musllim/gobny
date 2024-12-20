@@ -6,18 +6,23 @@ import (
 	"net/http"
 
 	"github.com/musllim/gobny/api/handler"
+	"github.com/musllim/gobny/api/middleware"
 )
 
 func main() {
+	authorizedRouter := http.NewServeMux()
 	router := http.NewServeMux()
 
+	router.Handle("/", middleware.IsAutenticated(authorizedRouter))
+
 	router.HandleFunc("GET /products", handler.GetProducts)
-	router.HandleFunc("POST /products", handler.CreateProducts)
+	authorizedRouter.HandleFunc("POST /products", handler.CreateProducts)
 	router.HandleFunc("POST /users", handler.CreateUser)
+	router.HandleFunc("POST /login", handler.LoginUser)
 	router.HandleFunc("GET /users/{id}/carts", handler.GetUserCart)
-	router.HandleFunc("POST /carts", handler.CreateCart)
-	router.HandleFunc("POST /carts/items", handler.CreateCartItem)
-	router.HandleFunc("GET /carts/{id}/items", handler.GetCartItems)
+	authorizedRouter.HandleFunc("POST /carts", handler.CreateCart)
+	authorizedRouter.HandleFunc("POST /carts/items", handler.CreateCartItem)
+	authorizedRouter.HandleFunc("GET /carts/{id}/items", handler.GetCartItems)
 
 	server := http.Server{
 		Addr:    ":3000",
