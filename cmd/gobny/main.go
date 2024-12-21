@@ -16,7 +16,9 @@ func main() {
 	router.Handle("/", middleware.IsAutenticated(authorizedRouter))
 
 	router.HandleFunc("GET /products", handler.GetProducts)
+	router.HandleFunc("GET /products/{id}", handler.GetProduct)
 	authorizedRouter.HandleFunc("POST /products", handler.CreateProducts)
+	authorizedRouter.HandleFunc("DELETE /products/{id}", handler.DeleteProduct)
 	router.HandleFunc("POST /users", handler.CreateUser)
 	router.HandleFunc("POST /login", handler.LoginUser)
 	authorizedRouter.HandleFunc("GET /carts", handler.GetUserCart)

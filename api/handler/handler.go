@@ -44,6 +44,71 @@ func GetProducts(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func DeleteProduct(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
+	queries := database.New(conn)
+
+	if err != nil {
+		throwError(w, "products query failed", http.StatusInternalServerError, err)
+		return
+	}
+
+	defer conn.Close(ctx)
+
+	cartId := r.PathValue("id")
+	id, err := strconv.Atoi(cartId)
+
+	if err != nil {
+		throwError(w, "Provide a valid cart id", http.StatusBadRequest, err)
+		return
+	}
+
+	products, err := queries.DeleteProduct(ctx, int32(id))
+
+	if err != nil {
+		throwError(w, "products query failed", http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(products)
+
+}
+func GetProduct(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
+	queries := database.New(conn)
+
+	if err != nil {
+		throwError(w, "products query failed", http.StatusInternalServerError, err)
+		return
+	}
+
+	defer conn.Close(ctx)
+
+	cartId := r.PathValue("id")
+	id, err := strconv.Atoi(cartId)
+
+	if err != nil {
+		throwError(w, "Provide a valid cart id", http.StatusBadRequest, err)
+		return
+	}
+
+	products, err := queries.GetProduct(ctx, int32(id))
+
+	if err != nil {
+		throwError(w, "products query failed", http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(products)
+
+}
+
 func CreateProducts(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))

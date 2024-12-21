@@ -9,6 +9,12 @@ SELECT * FROM users WHERE email = $1;
 INSERT INTO products (name, price, count)
 VALUES ($1, $2, $3);
 
+-- name: GetProduct :one
+SELECT * FROM products WHERE id = $1 LIMIT 1;
+
+-- name: DeleteProduct :execresult
+DELETE FROM products WHERE id = $1;
+
 -- name: GetProducts :many
 SELECT * FROM products;
 
