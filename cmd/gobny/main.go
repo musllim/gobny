@@ -18,6 +18,7 @@ func main() {
 	router.HandleFunc("GET /products", handler.GetProducts)
 	router.HandleFunc("GET /products/{id}", handler.GetProduct)
 	authorizedRouter.HandleFunc("POST /products", handler.CreateProducts)
+	authorizedRouter.HandleFunc("GET /profile", handler.UserProfile)
 	authorizedRouter.HandleFunc("DELETE /products/{id}", handler.DeleteProduct)
 	router.HandleFunc("POST /users", handler.CreateUser)
 	router.HandleFunc("POST /login", handler.LoginUser)

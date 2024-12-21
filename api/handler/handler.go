@@ -218,6 +218,40 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func UserProfile(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
+	queries := database.New(conn)
+
+	if err != nil {
+		throwError(w, "User Query failed", http.StatusInternalServerError, err)
+		return
+	}
+
+	defer conn.Close(ctx)
+	id, err := strconv.Atoi(r.URL.RawQuery)
+
+	if err != nil {
+		throwError(w, "Provide a valid user id:", http.StatusBadRequest, err)
+		return
+	}
+
+	user, err := queries.GetUserById(ctx, int32(id))
+
+	if err != nil {
+		throwError(w, "User fetch failed", http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	user.Password = ""
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		throwError(w, "failed to get cart failed", http.StatusInternalServerError, err)
+		return
+	}
+}
 func CreateCart(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	conn, err := pgx.Connect(ctx, os.Getenv("DB_URL"))
