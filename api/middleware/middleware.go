@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -39,6 +40,15 @@ func IsAutenticated(next http.Handler) http.Handler {
 		if !ok {
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte("failed to parse claims"))
+			return
+		}
+		expDate, err := claims.GetExpirationTime()
+		if err != nil {
+			writeUnauthed(w)
+			return
+		}
+		if time.Now().Unix() > expDate.Unix() {
+			writeUnauthed(w)
 			return
 		}
 		subject, error := claims.GetSubject()
